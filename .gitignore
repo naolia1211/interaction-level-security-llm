@@ -1,0 +1,12 @@
+# upstream benchmark: cloned by scripts/setup.sh at a pinned commit, never committed
+tau2-bench/
+# secrets
+.env
+# large raw traces stay local; evaluation.json (metrics + monitors) is committed
+results/*/simulations.json
+results/*_mock/
+# python / OS
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
