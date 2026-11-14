@@ -13,6 +13,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("prefix", nargs="?", default="")
 ap.add_argument("--run", default=None)
 ap.add_argument("--tail", type=int, default=0)
+ap.add_argument("--trial", type=int, default=None)
 ap.add_argument("--width", type=int, default=400)
 a = ap.parse_args()
 
@@ -20,6 +21,8 @@ run = Path(a.run) if a.run else sorted((ROOT / "results").glob("*/simulations.js
 print(f"run: {run.name}")
 for s in json.loads((run / "simulations.json").read_text())["simulations"]:
     if not s["task_id"].startswith(a.prefix) or not s.get("messages"):
+        continue
+    if a.trial is not None and s.get("trial") != a.trial:
         continue
     msgs = s["messages"][-a.tail:] if a.tail else s["messages"]
     print(f"\n===== {s['task_id']}  (trial {s.get('trial')}, {len(s['messages'])} messages)")

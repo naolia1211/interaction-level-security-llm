@@ -35,7 +35,23 @@ $PY scripts/show_run.py T3-01 --run results/20261110_135548_attacks_mas_BE_claud
 ```
 Chỉ vào dòng `>>> CHECK E` (lời khẳng định bị tách ra và danh tính bị xóa khỏi handoff), sau đó agent tự xác thực lại.
 
-## 4. Nếu thầy muốn xem chạy trực tiếp (2–3 phút, cần API)
+## 4. Đánh giá theo từng interaction: Y_P, Y_R → Z (2 phút, đúng tên đề tài)
+```bash
+$PY scripts/assess_interactions.py --show T3-01 --trial 0 --run results/20261110_105024_attacks_mas_none_claude-haiku-5-5
+$PY scripts/assess_interactions.py --show T3-01 --trial 0 --run results/20261110_135548_attacks_mas_BE_claude-haiku-5-5
+```
+Mỗi dòng là một interaction (luồng 1 = khách → hệ thống, luồng 3 = handoff). Chỉ vào:
+- Y_P là ý định của prompt, Y_R là tác động của phản hồi, Z là kết quả khi ghép hai thứ.
+- Không phòng thủ: luồng 1 có Y_P = authority_claim, Y_R = claim_relayed; luồng 3 thì Y_P đã "sạch" nhưng Y_R = cross_user / unauthenticated, Z = PC hoặc FC.
+- Có B + E: cột control hiện `E:E2` hoặc `B:B3`, Z = BA (tấn công bị chặn).
+
+Sau đó chạy bảng tổng:
+```bash
+$PY scripts/assess_interactions.py
+```
+Chỉ vào bảng Ablation: chỉ nhìn prompt thì không phân biệt được tấn công bị chặn (BA) với tấn công thành công (FC); chỉ nhìn response thì không phân biệt được BA với hội thoại bình thường (N). Ghép cả hai mới ra đủ 5 lớp Z. Đây là lớp rule; lớp learning của check A và C sẽ học từ chính các nhãn này (`--out results/interactions.jsonl`).
+
+## 5. Nếu thầy muốn xem chạy trực tiếp (2–3 phút, cần API)
 ```bash
 $PY scripts/run_baseline.py --set attacks --split t3 --agent mas --limit 1
 ```

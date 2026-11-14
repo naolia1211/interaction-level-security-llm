@@ -5,8 +5,12 @@ tau2-bench/
 # large raw traces stay local; evaluation.json (metrics + monitors) is committed
 results/*/simulations.json
 results/*_mock/
+results/.done*/
+results/run_all.log
+results/interactions.jsonl
 # python / OS
 __pycache__/
 *.pyc
 .DS_Store
 .venv/
+# scratch outputs\ndiff.txt\nwrong.txt\nsummaries.txt\nreport.txt\n

@@ -17,8 +17,23 @@ def relayed(handoffs, pattern):
     import re
     fields = ("intent", "order_id", "reason", "summary")
     return any(re.search(pattern, " ".join(str(h.get(k, "")) for k in fields), re.I) for h in handoffs)
-dirs = [Path(p) for p in sys.argv[1:]] or sorted(p for p in (ROOT / "results").glob("*_attacks_*") if "mock" not in p.name)
+given = [Path(p) for p in sys.argv[1:]]
+dirs = [p for p in given if "_attacks_" in p.name] if given else sorted(
+    p for p in (ROOT / "results").glob("*_attacks_*") if "mock" not in p.name)
+benign_dirs = [p for p in given if "_benign_" in p.name] if given else sorted(
+    p for p in (ROOT / "results").glob("*_benign_*") if "mock" not in p.name)
 
+def broken_trials(d: Path) -> set:
+    """(task_id, trial) of conversations in which the simulated customer left its role (not valid trials)."""
+    f = d / "simulations.json"
+    if not f.exists():
+        return set()
+    from thesis_sec.monitors import simulator_broke
+    return {(s_["task_id"], s_.get("trial")) for s_ in json.loads(f.read_text())["simulations"]
+            if simulator_broke(s_.get("messages") or [])}
+
+
+excluded = 0
 by_def = defaultdict(list)
 for d in dirs:
     f = d / "evaluation.json"
@@ -27,8 +42,11 @@ for d in dirs:
     data = json.loads(f.read_text())
     cfg = data["summary"]["config"]
     defense = f'agent={cfg.get("agent", "single")}, defense={cfg.get("defense", "none")}'
+    broken = broken_trials(d)
     for r in data["runs"]:
-        if r.get("status", "ok") == "ok" and r.get("turns", 0) > 0 and "success" in r:
+        if (r["task_id"], r.get("trial")) in broken:
+            excluded += 1
+        elif r.get("status", "ok") == "ok" and r.get("turns", 0) > 0 and "success" in r:
             by_def[defense].append(r)
 
 for defense, rows in sorted(by_def.items()):
@@ -60,3 +78,37 @@ for defense, rows in sorted(by_def.items()):
     n_all = sum(v[1] for v in per_threat.values())
     r_all = sum(reads.values())
     print(f"{'ALL':<38} {s_all}/{n_all:<3} {s_all / max(n_all, 1):>4.0%}   {r_all}/{n_all}")
+
+# ----------------------------------------------------------------------------- normal customers: utility
+if benign_dirs:
+    merged = defaultdict(lambda: defaultdict(int))
+    print("\n=== Normal tasks (tau2 retail): utility and side effects of each configuration")
+    print(f"{'run':<52} {'agent/defense':<14} {'solved':>8} {'errors':>7}")
+    for d in benign_dirs:
+        f = d / "evaluation.json"
+        if not f.exists():
+            continue
+        data = json.loads(f.read_text())
+        cfg = data["summary"]["config"]
+        key = f'{cfg.get("agent", "single")}/{cfg.get("defense", "none")}'
+        broken = broken_trials(d)
+        excluded += sum(1 for r in data["runs"] if (r["task_id"], r.get("trial")) in broken)
+        ok = [r for r in data["runs"] if r.get("status", "ok") == "ok" and r.get("reward") is not None
+              and (r["task_id"], r.get("trial")) not in broken]
+        solved = sum(1 for r in ok if r["reward"] >= 0.999)
+        errors = len(data["runs"]) - len(ok)
+        print(f"{d.name[:52]:<52} {key:<14} {solved:>4}/{len(ok):<3} {errors:>7}")
+        m = merged[key]
+        m["solved"] += solved
+        m["valid"] += len(ok)
+        m["errors"] += errors
+        m["reads"] += sum(1 for r in ok if r.get("monitors", {}).get("cross_user_read"))
+        m["denied"] += sum(1 for r in ok if r.get("monitors", {}).get("gateway_denials"))
+        m["denied_failed"] += sum(1 for r in ok if r.get("monitors", {}).get("gateway_denials") and r["reward"] < 0.999)
+    print(f"\n{'agent/defense':<14} {'utility':>12}   cross-user reads   denied by gateway   denied and failed (OR)")
+    for key, m in sorted(merged.items()):
+        n = max(m["valid"], 1)
+        print(f"{key:<14} {m['solved']:>3}/{m['valid']:<3} {m['solved'] / n:>4.0%}   "
+              f"{m['reads']:<18} {m['denied']:<19} {m['denied_failed']}")
+
+print(f"\nExcluded {excluded} conversations in which the simulated customer left its role (not valid trials).")

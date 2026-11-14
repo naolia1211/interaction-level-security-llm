@@ -13,6 +13,7 @@ evaluation environment only; the attack scenarios, monitors and defenses are the
 | Two-agent system: Triage → handoff → Return Resolution | `thesis_sec/mas.py` | flow 3 |
 | Check B, Action Gateway (rules B1–B4) | `thesis_sec/gateway.py` | flows 5–6 |
 | Check E, handoff check, rule layer (E1–E4) | `thesis_sec/handoff_check.py` | flow 3 |
+| Interaction Assessor, rule layer: Y_P, Y_R → outcome Z per interaction | `thesis_sec/assessor.py`, `scripts/assess_interactions.py` | Interaction Assessor (flow 14 store) |
 
 ## Pilot results (third-party API gateway, 1–4 trials per cell: direction only)
 
@@ -39,6 +40,7 @@ testbed/
 │   ├── gateway.py           # check B: Action Gateway, rules B1-B4 (rule-only)
 │   ├── mas.py               # two-agent system: Triage -> handoff (flow 3) -> Return Resolution
 │   ├── handoff_check.py     # check E: rules E1-E4 on the handoff (rule layer)
+│   ├── assessor.py          # Interaction Assessor, rule layer: Y_P (prompt intent) + Y_R (response impact) -> Z
 │   ├── monitors.py          # replay + security monitors + attack-goal evaluation (no LLM)
 │   └── data/
 │       ├── attack_tasks.json   # 17 scenarios: v1 (8 static), v2 (7 adaptive / new), t3 (2 handoff)
@@ -47,6 +49,8 @@ testbed/
 │   ├── setup.sh             # clone + install (one time)
 │   ├── selftest.py          # offline tests of detectors and gateway (no API key)
 │   ├── run_baseline.py      # run attacks or benign tasks; --agent single|mas, --defense none|B|E|BE
+│   ├── run_all.sh           # pilot 2: every configuration, resumable (several hours)
+│   ├── assess_interactions.py  # per-interaction Y_P / Y_R / Z, agreement and ablation (no API)
 │   ├── summarize.py         # merge runs: ASR per scenario, per defense
 │   └── show_run.py          # print conversations of the latest run
 └── results/                 # one folder per run: evaluation.json (committed) + simulations.json (local only)
@@ -74,6 +78,9 @@ $PY scripts/run_baseline.py --set attacks --split t3 --agent mas   # two-agent s
 $PY scripts/run_baseline.py --set attacks --split t3 --agent mas --defense E --trials 3   # with check E
 $PY scripts/summarize.py                                     # ASR tables, one per agent/defense
 $PY scripts/show_run.py T1-06A --tail 12                     # read a conversation
+$PY scripts/assess_interactions.py                           # interaction-level assessment of every run
+$PY scripts/assess_interactions.py --show T3-01 --run results/<run>   # Y_P, Y_R, Z per interaction
+bash scripts/run_all.sh                                      # pilot 2: all configurations, resumable
 ```
 
 To read a conversation: open `results/<run>/simulations.json`, or run `tau2 view` inside `tau2-bench`.

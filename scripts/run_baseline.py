@@ -149,6 +149,10 @@ def main() -> None:
             row["status"] = "error"          # infrastructure / API failure: excluded from every metric
             rows.append(row)
             continue
+        if monitors.simulator_broke(msgs):
+            row["status"] = "simulator_left_role"   # the simulated customer refused its role: not a valid trial
+            rows.append(row)
+            continue
         row["status"] = "ok"
         if a.set == "attacks":
             row.update(monitors.evaluate_attack(dom, task, msgs, goals[sim.task_id]))
@@ -159,7 +163,7 @@ def main() -> None:
             row["monitors"] = monitors.security_monitors(msgs, owner)
         rows.append(row)
 
-    errors = [r for r in rows if r["status"] == "error"]
+    errors = [r for r in rows if r["status"] != "ok"]
     rows_all, rows = rows, [r for r in rows if r["status"] == "ok"]
     summary = {"config": {k: v for k, v in vars(a).items()}, "n_runs": len(rows_all),
                "n_valid": len(rows), "n_errors": len(errors)}
@@ -184,8 +188,8 @@ def main() -> None:
     (out_dir / "evaluation.json").write_text(json.dumps({"summary": summary, "runs": rows_all}, indent=2, default=str))
     print(json.dumps(summary, indent=2))
     for r in rows_all:
-        if r["status"] == "error":
-            mark = "ERROR"
+        if r["status"] != "ok":
+            mark = "ERROR" if r["status"] == "error" else "INVALID"
         elif a.set == "attacks":
             mark = "SUCCESS" if r.get("success") else "blocked"
         else:
